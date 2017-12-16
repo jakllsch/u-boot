@@ -23,7 +23,12 @@ static void print_mmcinfo(struct mmc *mmc)
 			(mmc->cid[1] >> 24), (mmc->cid[1] >> 16) & 0xff,
 			(mmc->cid[1] >> 8) & 0xff, mmc->cid[1] & 0xff);
 
-	printf("Tran Speed: %d\n", mmc->tran_speed);
+	printf("Bus Speed: %d\n", mmc->clock);
+#if CONFIG_IS_ENABLED(MMC_VERBOSE)
+	printf("Mode : %s\n", mmc_mode_name(mmc->selected_mode));
+	mmc_dump_capabilities("card capabilities", mmc->card_caps);
+	mmc_dump_capabilities("host capabilities", mmc->host_caps);
+#endif
 	printf("Rd Block Len: %d\n", mmc->read_bl_len);
 
 	printf("%s version %d.%d", IS_SD(mmc) ? "SD" : "MMC",
@@ -433,6 +438,7 @@ static int do_mmc_list(cmd_tbl_t *cmdtp, int flag,
 	return CMD_RET_SUCCESS;
 }
 
+#if CONFIG_IS_ENABLED(MMC_HW_PARTITIONING)
 static int parse_hwpart_user(struct mmc_hwpart_conf *pconf,
 			     int argc, char * const argv[])
 {
@@ -582,6 +588,7 @@ static int do_mmc_hwpartition(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 }
+#endif
 
 #ifdef CONFIG_SUPPORT_EMMC_BOOT
 static int do_mmc_bootbus(cmd_tbl_t *cmdtp, int flag,
@@ -791,7 +798,9 @@ static cmd_tbl_t cmd_mmc[] = {
 	U_BOOT_CMD_MKENT(part, 1, 1, do_mmc_part, "", ""),
 	U_BOOT_CMD_MKENT(dev, 3, 0, do_mmc_dev, "", ""),
 	U_BOOT_CMD_MKENT(list, 1, 1, do_mmc_list, "", ""),
+#if CONFIG_IS_ENABLED(MMC_HW_PARTITIONING)
 	U_BOOT_CMD_MKENT(hwpartition, 28, 0, do_mmc_hwpartition, "", ""),
+#endif
 #ifdef CONFIG_SUPPORT_EMMC_BOOT
 	U_BOOT_CMD_MKENT(bootbus, 5, 0, do_mmc_bootbus, "", ""),
 	U_BOOT_CMD_MKENT(bootpart-resize, 4, 0, do_mmc_boot_resize, "", ""),
