@@ -151,6 +151,10 @@ config ARMV8_EA_EL3_FIRST
 	  Exception handling at all exception levels for External Abort and
 	  SError interrupt exception are taken in EL3.
 
+config ARMV8_SWITCH_TO_EL1
+	bool "Switch to EL1 before booting kernel"
+	default n
+
 if SYS_HAS_ARMV8_SECURE_BASE
 
 config ARMV8_SECURE_BASE
