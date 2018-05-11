@@ -91,4 +91,7 @@
 /* Misc utility code */
 #define CONFIG_BOUNCE_BUFFER
 
+/* Override default uimg size limit */
+#define	CONFIG_SYS_BOOTM_LEN		(64 << 20) /* Increase max gunzip size */
+
 #endif /* _TEGRA_COMMON_H_ */
