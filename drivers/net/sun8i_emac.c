@@ -73,6 +73,7 @@
 #define SUN8I_IOMUX_H3		2
 #define SUN8I_IOMUX_R40	5
 #define SUN8I_IOMUX		4
+#define SUN50I_IOMUX_H6		5
 
 /* H3/A64 EMAC Register's offset */
 #define EMAC_CTL0		0x00
@@ -103,6 +104,7 @@ enum emac_variant {
 	H3_EMAC,
 	A64_EMAC,
 	R40_GMAC,
+	H6_EMAC,
 };
 
 struct emac_dma_desc {
@@ -290,14 +292,15 @@ static int sun8i_emac_set_syscon(struct sun8i_eth_pdata *pdata,
 	if (priv->variant == R40_GMAC)
 		return 0;
 
-	if (priv->variant == H3_EMAC) {
+	if (priv->variant == H3_EMAC || priv->variant == H6_EMAC) {
 		ret = sun8i_emac_set_syscon_ephy(priv, &reg);
 		if (ret)
 			return ret;
 	}
 
 	reg &= ~(SC_ETCS_MASK | SC_EPIT);
-	if (priv->variant == H3_EMAC || priv->variant == A64_EMAC)
+	if (priv->variant == H3_EMAC || priv->variant == A64_EMAC ||
+	    priv->variant == H6_EMAC)
 		reg &= ~SC_RMII_EN;
 
 	switch (priv->interface) {
@@ -309,7 +312,8 @@ static int sun8i_emac_set_syscon(struct sun8i_eth_pdata *pdata,
 		break;
 	case PHY_INTERFACE_MODE_RMII:
 		if (priv->variant == H3_EMAC ||
-		    priv->variant == A64_EMAC) {
+		    priv->variant == A64_EMAC ||
+		    priv->variant == H6_EMAC) {
 			reg |= SC_RMII_EN | SC_ETCS_EXT_GMII;
 		break;
 		}
@@ -517,6 +521,8 @@ static int parse_phy_pins(struct udevice *dev)
 			sunxi_gpio_set_cfgpin(pin, SUN8I_IOMUX_H3);
 		else if (priv->variant == R40_GMAC)
 			sunxi_gpio_set_cfgpin(pin, SUN8I_IOMUX_R40);
+		else if (priv->variant == H6_EMAC)
+			sunxi_gpio_set_cfgpin(pin, SUN50I_IOMUX_H6);
 		else
 			sunxi_gpio_set_cfgpin(pin, SUN8I_IOMUX);
 
@@ -646,6 +652,7 @@ static void sun8i_emac_board_setup(struct emac_eth_dev *priv)
 	if (priv->variant == H3_EMAC) {
 		/* Only H3/H5 have clock controls for internal EPHY */
 		if (priv->use_internal_phy) {
+#if !CONFIG_IS_ENABLED(MACH_SUN50I_H6)
 			/* Set clock gating for ephy */
 			setbits_le32(&ccm->bus_gate4,
 				     BIT(AHB_GATE_OFFSET_EPHY));
@@ -653,10 +660,12 @@ static void sun8i_emac_board_setup(struct emac_eth_dev *priv)
 			/* Deassert EPHY */
 			setbits_le32(&ccm->ahb_reset2_cfg,
 				     BIT(AHB_RESET_OFFSET_EPHY));
+#endif
 		}
 	}
 
 	if (priv->variant == R40_GMAC) {
+#if !CONFIG_IS_ENABLED(MACH_SUN50I_H6)
 		/* Set clock gating for emac */
 		setbits_le32(&ccm->ahb_reset1_cfg, BIT(AHB_RESET_OFFSET_GMAC));
 
@@ -669,12 +678,23 @@ static void sun8i_emac_board_setup(struct emac_eth_dev *priv)
 			     CCM_GMAC_CTRL_GPIT_RGMII);
 		setbits_le32(&ccm->gmac_clk_cfg,
 			     CCM_GMAC_CTRL_TX_CLK_DELAY(CONFIG_GMAC_TX_DELAY));
+#endif
+	} else if (priv->variant == H6_EMAC) {
+#if CONFIG_IS_ENABLED(MACH_SUN50I_H6)
+		/* Set clock gating for emac */
+		setbits_le32(&ccm->emac_gate_reset, BIT(0));
+
+		/* De-assert EMAC */
+		setbits_le32(&ccm->emac_gate_reset, BIT(16));
+#endif
 	} else {
+#if !CONFIG_IS_ENABLED(MACH_SUN50I_H6)
 		/* Set clock gating for emac */
 		setbits_le32(&ccm->ahb_gate0, BIT(AHB_GATE_OFFSET_GMAC));
 
 		/* De-assert EMAC */
 		setbits_le32(&ccm->ahb_reset0_cfg, BIT(AHB_RESET_OFFSET_GMAC));
+#endif
 	}
 }
 
@@ -947,6 +967,8 @@ static const struct udevice_id sun8i_emac_eth_ids[] = {
 		.data = (uintptr_t)A83T_EMAC },
 	{.compatible = "allwinner,sun8i-r40-gmac",
 		.data = (uintptr_t)R40_GMAC },
+	{.compatible = "allwinner,sun50i-h6-emac",
+		.data = (uintptr_t)H6_EMAC },
 	{ }
 };
 
